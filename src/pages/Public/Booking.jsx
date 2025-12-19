@@ -15,10 +15,9 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import moment from "moment";
-//import "./Booking.css"; // Nếu bạn muốn custom thêm CSS
 
 // --- CẤU HÌNH MÀU SẮC & STYLE ---
-const PRIMARY_COLOR = "#00b5ad"; // Màu xanh ngọc hiện đại
+const PRIMARY_COLOR = "#00b5ad";
 const BG_LIGHT = "#f8f9fa";
 const ACTIVE_SERVICE_BG = "#e6fffa";
 const ACTIVE_SERVICE_BORDER = "#00b5ad";
@@ -30,15 +29,17 @@ const Booking = () => {
   const [doctors, setDoctors] = useState([]);
   const [specialties, setSpecialties] = useState([]);
   const [services, setServices] = useState([]);
-  const [schedules, setSchedules] = useState([]);
+
+  // State này dùng để chứa danh sách giờ đã được "băm" nhỏ
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   const [bookingData, setBookingData] = useState({
     specialtyId: "",
     doctorId: "",
     selectedDate: new Date(),
-    scheduleId: null,
-    timeStart: "",
-    timeEnd: "",
+    scheduleId: null, // ID của lịch gốc trong DB
+    timeStart: "", // Giờ bắt đầu của slot nhỏ (ví dụ 08:00)
+    timeEnd: "", // Giờ kết thúc của slot nhỏ (ví dụ 10:00)
     serviceIds: [],
     totalPrice: 0,
   });
@@ -46,6 +47,13 @@ const Booking = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [user, setUser] = useState(null);
+
+  // --- XỬ LÝ CUỘN LÊN ĐẦU KHI ĐẶT THÀNH CÔNG ---
+  useEffect(() => {
+    if (isBooked) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [isBooked]);
 
   // --- INIT DATA ---
   useEffect(() => {
@@ -75,9 +83,7 @@ const Booking = () => {
 
       if (resDoctor.data.EC === 0) setDoctors(resDoctor.data.DT);
       if (resService.data.EC === 0) setServices(resService.data.DT);
-
       if (resSpecialty.data.EC === 0) {
-        // Map data chuyên khoa chuẩn
         const formatted = resSpecialty.data.DT.map((item) => ({
           id: item.id,
           name: item.nameSpecialty,
@@ -89,7 +95,7 @@ const Booking = () => {
     }
   };
 
-  // --- FETCH SCHEDULE ---
+  // --- FETCH SCHEDULE & XỬ LÝ CHIA GIỜ ---
   useEffect(() => {
     if (bookingData.doctorId && bookingData.selectedDate) {
       fetchSchedule();
@@ -103,7 +109,10 @@ const Booking = () => {
         `http://localhost:8081/api/schedule-by-date?doctorId=${bookingData.doctorId}&date=${dateString}`
       );
       if (res.data.EC === 0) {
-        setSchedules(res.data.DT);
+        // Gọi hàm xử lý chia nhỏ giờ từ dữ liệu gốc
+        const generatedSlots = generateTimeSlots(res.data.DT);
+        setAvailableSlots(generatedSlots);
+
         // Reset giờ khi đổi ngày
         setBookingData((prev) => ({
           ...prev,
@@ -117,6 +126,32 @@ const Booking = () => {
     }
   };
 
+  // --- HÀM CHIA NHỎ GIỜ (2 TIẾNG 1 KHUNG) ---
+  const generateTimeSlots = (originalSchedules) => {
+    let slots = [];
+
+    // Duyệt qua từng lịch gốc (thường là 1 cục 08:00 - 17:00)
+    originalSchedules.forEach((schedule) => {
+      // Lấy giờ bắt đầu và kết thúc (ví dụ lấy số 8 và 17 từ chuỗi "08:00")
+      let startHour = parseInt(schedule.timeStart.split(":")[0]);
+      let endHour = parseInt(schedule.timeEnd.split(":")[0]);
+
+      // Vòng lặp cộng dồn 2 tiếng mỗi lần
+      for (let h = startHour; h < endHour; h += 2) {
+        // Kiểm tra nếu cộng thêm 2 tiếng mà vẫn nằm trong giờ làm việc
+        if (h + 2 <= endHour) {
+          slots.push({
+            originalScheduleId: schedule.id, // Giữ lại ID của lịch gốc để gửi API
+            displayTime: `${h}:00 - ${h + 2}:00`, // Hiển thị UI
+            timeStart: `${h.toString().padStart(2, "0")}:00`, // Format 08:00
+            timeEnd: `${(h + 2).toString().padStart(2, "0")}:00`, // Format 10:00
+          });
+        }
+      }
+    });
+    return slots;
+  };
+
   // --- CALCULATE PRICE ---
   useEffect(() => {
     const total = bookingData.serviceIds.reduce((sum, serviceId) => {
@@ -127,12 +162,8 @@ const Booking = () => {
   }, [bookingData.serviceIds, services]);
 
   // --- HANDLERS ---
-
-  // LOGIC SỬA LỖI LỌC BÁC SĨ:
-  // So sánh trực tiếp specialtyId của bác sĩ với specialtyId đang chọn
   const filteredDoctors = doctors.filter((d) => {
     if (!bookingData.specialtyId) return false;
-    // Dùng toán tử == để so sánh lỏng (string vs number) cho an toàn
     return d.specialtyId == bookingData.specialtyId;
   });
 
@@ -147,12 +178,13 @@ const Booking = () => {
     });
   };
 
-  const handleSlotClick = (schedule) => {
+  // Khi click vào slot nhỏ
+  const handleSlotClick = (slot) => {
     setBookingData((prev) => ({
       ...prev,
-      scheduleId: schedule.id,
-      timeStart: schedule.timeStart,
-      timeEnd: schedule.timeEnd,
+      scheduleId: slot.originalScheduleId, // Vẫn dùng ID gốc của DB
+      timeStart: slot.timeStart, // Dùng giờ đã chia nhỏ
+      timeEnd: slot.timeEnd, // Dùng giờ đã chia nhỏ
     }));
   };
 
@@ -171,8 +203,8 @@ const Booking = () => {
         doctorId: bookingData.doctorId,
         scheduleId: bookingData.scheduleId,
         dateBooking: moment(bookingData.selectedDate).format("YYYY-MM-DD"),
-        timeStart: bookingData.timeStart,
-        timeEnd: bookingData.timeEnd,
+        timeStart: bookingData.timeStart, // Gửi lên giờ start của slot nhỏ (ví dụ 08:00)
+        timeEnd: bookingData.timeEnd, // Gửi lên giờ end của slot nhỏ (ví dụ 10:00)
         services: bookingData.serviceIds,
         description: `Đặt khám qua Web - Chuyên khoa ${
           specialties.find((s) => s.id == bookingData.specialtyId)?.name
@@ -189,6 +221,7 @@ const Booking = () => {
 
       if (res.data.EC === 0) {
         setIsBooked(true);
+        // Lưu ý: useEffect ở trên sẽ bắt sự kiện isBooked=true để cuộn trang
       } else {
         alert(res.data.EM);
       }
@@ -326,13 +359,6 @@ const Booking = () => {
                         </option>
                       ))}
                     </Form.Select>
-                    {bookingData.specialtyId &&
-                      filteredDoctors.length === 0 && (
-                        <div className="text-danger mt-2 small">
-                          <i className="fas fa-exclamation-circle me-1"></i>Chưa
-                          có bác sĩ nào thuộc khoa này.
-                        </div>
-                      )}
                   </Form.Group>
 
                   {/* 3. Chọn Dịch vụ (Dạng Card) */}
@@ -438,32 +464,33 @@ const Booking = () => {
                         setBookingData({ ...bookingData, selectedDate: date })
                       }
                       minDate={new Date()}
-                      inline // Hiển thị lịch luôn ra ngoài
+                      inline
                       disabled={!bookingData.doctorId}
                     />
                   </Card.Body>
                 </Card>
 
-                {/* 2. Chọn Giờ */}
+                {/* 2. Chọn Giờ - ĐÃ SỬA ĐỂ HIỆN CÁC KHUNG GIỜ NHỎ */}
                 <Card className="border-0 shadow-sm rounded-4 mb-4">
                   <Card.Body className="p-4">
                     <h6 className="fw-bold mb-3 text-muted">Khung giờ trống</h6>
                     {bookingData.doctorId ? (
                       <div className="d-flex flex-wrap gap-2">
-                        {schedules.length > 0 ? (
-                          schedules.map((schedule) => (
+                        {availableSlots.length > 0 ? (
+                          availableSlots.map((slot, index) => (
                             <Button
-                              key={schedule.id}
+                              key={index}
                               variant={
-                                bookingData.scheduleId === schedule.id
+                                // So sánh thời gian bắt đầu để highlight nút đang chọn
+                                bookingData.timeStart === slot.timeStart
                                   ? "primary"
                                   : "outline-secondary"
                               }
                               className="rounded-pill py-2 px-3 fw-semibold"
-                              onClick={() => handleSlotClick(schedule)}
+                              onClick={() => handleSlotClick(slot)}
                               style={{ fontSize: "0.9rem" }}
                             >
-                              {schedule.timeStart}
+                              {slot.timeStart}
                             </Button>
                           ))
                         ) : (
@@ -499,7 +526,10 @@ const Booking = () => {
                       </span>
                       <span>
                         <i className="far fa-clock me-2"></i>
-                        {bookingData.timeStart || "--:--"}
+                        {/* Hiển thị giờ bắt đầu - giờ kết thúc */}
+                        {bookingData.timeStart
+                          ? `${bookingData.timeStart} - ${bookingData.timeEnd}`
+                          : "--:--"}
                       </span>
                     </div>
 
