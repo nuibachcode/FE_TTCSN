@@ -9,6 +9,9 @@ import {
   Form,
   Alert,
   Spinner,
+  Tabs,
+  Tab,
+  Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
 import moment from "moment";
@@ -16,6 +19,11 @@ import moment from "moment";
 const BookingAdminManagement = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // --- TAB & PAGINATION STATE ---
+  const [key, setKey] = useState("all"); // State quản lý Tab đang chọn
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // State cho Modal Thanh toán
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -30,7 +38,12 @@ const BookingAdminManagement = () => {
     fetchBookings();
   }, []);
 
-  // 1. Lấy danh sách lịch hẹn từ API
+  // Reset về trang 1 khi chuyển Tab hoặc data thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [key, bookings]);
+
+  // 1. Lấy danh sách lịch hẹn
   const fetchBookings = async () => {
     setLoading(true);
     try {
@@ -38,19 +51,88 @@ const BookingAdminManagement = () => {
       const res = await axios.get("http://localhost:8081/api/bookings", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.EC === 0) setBookings(res.data.DT);
+      if (res.data.EC === 0) {
+        // SẮP XẾP: Mới nhất lên đầu
+        const sortedData = res.data.DT.sort((a, b) => b.id - a.id);
+        setBookings(sortedData);
+      }
     } catch (error) {
       console.log(error);
     }
     setLoading(false);
   };
 
-  // 2. Xử lý Xác nhận / Hủy Lịch (Gọi API Update)
+  // --- LOGIC FILTER THEO TAB ---
+  const getFilteredBookings = () => {
+    if (key === "all") return bookings;
+    return bookings.filter((item) => item.status === key);
+  };
+
+  const filteredBookings = getFilteredBookings();
+
+  // --- LOGIC PHÂN TRANG (Áp dụng trên data đã lọc) ---
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredBookings.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  // --- RENDER SỐ TRANG ---
+  const renderPaginationItems = () => {
+    let items = [];
+    if (currentPage > 2) {
+      items.push(
+        <Pagination.Item key={1} onClick={() => handlePageChange(1)}>
+          1
+        </Pagination.Item>
+      );
+      if (currentPage > 3)
+        items.push(<Pagination.Ellipsis key="start-ellipsis" />);
+    }
+
+    for (
+      let number = Math.max(1, currentPage - 1);
+      number <= Math.min(totalPages, currentPage + 1);
+      number++
+    ) {
+      items.push(
+        <Pagination.Item
+          key={number}
+          active={number === currentPage}
+          onClick={() => handlePageChange(number)}
+        >
+          {number}
+        </Pagination.Item>
+      );
+    }
+
+    if (currentPage < totalPages - 1) {
+      if (currentPage < totalPages - 2)
+        items.push(<Pagination.Ellipsis key="end-ellipsis" />);
+      items.push(
+        <Pagination.Item
+          key={totalPages}
+          onClick={() => handlePageChange(totalPages)}
+        >
+          {totalPages}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
+  // 2. Xử lý Update Status
   const handleUpdateStatus = async (bookingId, newStatus) => {
-    if (
-      !window.confirm(`Bạn chắc chắn muốn chuyển trạng thái sang ${newStatus}?`)
-    )
-      return;
+    const confirmMsg =
+      newStatus === "cancelled"
+        ? "Bạn chắc chắn muốn HỦY lịch hẹn này?"
+        : "Xác nhận lịch hẹn này?";
+
+    if (!window.confirm(confirmMsg)) return;
 
     try {
       const token = localStorage.getItem("token");
@@ -62,7 +144,7 @@ const BookingAdminManagement = () => {
 
       if (res.data.EC === 0) {
         alert("Cập nhật trạng thái thành công!");
-        fetchBookings(); // Load lại bảng
+        fetchBookings();
       }
     } catch (e) {
       alert("Lỗi cập nhật trạng thái");
@@ -71,18 +153,16 @@ const BookingAdminManagement = () => {
 
   // 3. Mở Modal Thanh toán
   const handleOpenPayment = (booking) => {
-    // Tính tổng tiền (Lấy giá lúc đặt hoặc giá gốc)
     const total = booking.services.reduce(
       (acc, s) => acc + Number(s.BookingService?.priceAtBooking || s.price),
       0
     );
-
     setSelectedBooking(booking);
     setPaymentData({ amount: total, method: "cash", note: "" });
     setShowPaymentModal(true);
   };
 
-  // 4. Xử lý Xác nhận Thanh toán (Gọi API Payment)
+  // 4. Xác nhận Thanh toán
   const handleConfirmPayment = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -97,13 +177,11 @@ const BookingAdminManagement = () => {
       const res = await axios.post(
         "http://localhost:8081/api/payments",
         payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.EC === 0) {
-        alert("Thanh toán thành công! Doanh thu đã được cập nhật.");
+        alert("Thanh toán thành công!");
         setShowPaymentModal(false);
         fetchBookings();
       }
@@ -123,13 +201,146 @@ const BookingAdminManagement = () => {
       case "confirmed":
         return <Badge bg="primary">Đã xác nhận</Badge>;
       case "completed":
-        return <Badge bg="success">Đã thanh toán</Badge>; // completed coi như là xong xuôi
+        return <Badge bg="success">Đã thanh toán</Badge>;
       case "cancelled":
         return <Badge bg="danger">Đã hủy</Badge>;
       default:
         return <Badge bg="secondary">{status}</Badge>;
     }
   };
+
+  // Component Bảng (Tái sử dụng cho các Tab)
+  const BookingTable = () => (
+    <div className="d-flex flex-column" style={{ minHeight: "500px" }}>
+      <div className="flex-grow-1">
+        <Table hover responsive className="align-middle m-0">
+          <thead className="bg-light">
+            <tr>
+              <th>Mã BK</th>
+              <th style={{ width: "20%" }}>Bệnh nhân</th>
+              <th>Bác sĩ</th>
+              <th>Thời gian</th>
+              <th style={{ width: "20%" }}>Dịch vụ</th>
+              <th>Trạng thái</th>
+              <th className="text-center">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentItems.length > 0 ? (
+              currentItems.map((item) => (
+                <tr key={item.id} style={{ height: "80px" }}>
+                  {" "}
+                  {/* Cố định chiều cao dòng */}
+                  <td className="fw-bold">#{item.id}</td>
+                  <td>
+                    <div className="fw-bold">{item.User?.fullName}</div>
+                    <small className="text-muted">{item.User?.phone}</small>
+                  </td>
+                  <td>{item.Schedule?.User?.fullName}</td>
+                  <td>
+                    {moment(item.dateBooking).format("DD/MM/YYYY")} <br />
+                    <small className="text-primary fw-bold">
+                      {item.timeStart} - {item.timeEnd}
+                    </small>
+                  </td>
+                  <td>
+                    {item.services?.map((s, idx) => (
+                      <div
+                        key={idx}
+                        className="text-truncate"
+                        style={{ maxWidth: "150px" }}
+                      >
+                        • {s.nameService}
+                      </div>
+                    ))}
+                  </td>
+                  <td>{getStatusBadge(item.status)}</td>
+                  <td className="text-center">
+                    <div className="d-flex justify-content-center gap-2">
+                      {/* Nút Xác nhận */}
+                      {item.status === "pending" && (
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() =>
+                            handleUpdateStatus(item.id, "confirmed")
+                          }
+                          title="Xác nhận lịch"
+                        >
+                          <i className="bi bi-check-lg"></i>
+                        </Button>
+                      )}
+
+                      {/* Nút Thanh toán */}
+                      {item.status === "confirmed" && (
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => handleOpenPayment(item)}
+                          title="Thu tiền & Hoàn thành"
+                        >
+                          <i className="bi bi-cash-coin"></i>
+                        </Button>
+                      )}
+
+                      {/* Nút Hủy */}
+                      {item.status !== "completed" &&
+                        item.status !== "cancelled" && (
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() =>
+                              handleUpdateStatus(item.id, "cancelled")
+                            }
+                            title="Hủy lịch"
+                          >
+                            <i className="bi bi-x-lg"></i>
+                          </Button>
+                        )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center py-5 text-muted">
+                  Không có lịch hẹn nào.
+                </td>
+              </tr>
+            )}
+
+            {/* --- FILLER ROWS --- */}
+            {currentItems.length > 0 &&
+              currentItems.length < itemsPerPage &&
+              Array.from({ length: itemsPerPage - currentItems.length }).map(
+                (_, idx) => (
+                  <tr key={`empty-${idx}`} style={{ height: "80px" }}>
+                    <td colSpan="7"></td>
+                  </tr>
+                )
+              )}
+          </tbody>
+        </Table>
+      </div>
+
+      {/* --- PHÂN TRANG --- */}
+      {filteredBookings.length > itemsPerPage && (
+        <div className="d-flex justify-content-center py-3 border-top mt-auto">
+          <Pagination className="mb-0">
+            <Pagination.Prev
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            />
+            {renderPaginationItems()}
+            <Pagination.Next
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            />
+          </Pagination>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Container fluid className="py-4">
@@ -138,7 +349,7 @@ const BookingAdminManagement = () => {
         Hẹn
       </h3>
 
-      <Alert variant="info">
+      <Alert variant="info" className="mb-4">
         <i className="bi bi-info-circle me-2"></i>
         Admin vui lòng gọi điện xác nhận với khách hàng trước khi chuyển trạng
         thái sang <strong>Đã xác nhận</strong>.
@@ -151,89 +362,54 @@ const BookingAdminManagement = () => {
               <Spinner animation="border" />
             </div>
           ) : (
-            <Table hover responsive className="align-middle">
-              <thead className="bg-light">
-                <tr>
-                  <th>Mã BK</th>
-                  <th>Bệnh nhân / SĐT</th>
-                  <th>Bác sĩ</th>
-                  <th>Ngày khám</th>
-                  <th>Dịch vụ</th>
-                  <th>Trạng thái</th>
-                  <th>Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((item) => (
-                  <tr key={item.id}>
-                    <td className="fw-bold">#{item.id}</td>
-                    <td>
-                      <div className="fw-bold">{item.User?.fullName}</div>
-                      <small className="text-muted">{item.User?.phone}</small>
-                    </td>
-                    <td>{item.Schedule?.User?.fullName}</td>
-                    <td>
-                      {moment(item.dateBooking).format("DD/MM/YYYY")} <br />
-                      <small className="text-primary">
-                        {item.timeStart} - {item.timeEnd}
-                      </small>
-                    </td>
-                    <td>
-                      {item.services?.map((s) => (
-                        <div key={s.id}>• {s.nameService}</div>
-                      ))}
-                    </td>
-                    <td>{getStatusBadge(item.status)}</td>
-                    <td>
-                      <div className="d-flex gap-2">
-                        {/* Nút Xác nhận (Chỉ hiện khi Pending) */}
-                        {item.status === "pending" && (
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() =>
-                              handleUpdateStatus(item.id, "confirmed")
-                            }
-                          >
-                            <i className="bi bi-check-lg"></i> Xác nhận
-                          </Button>
-                        )}
-
-                        {/* Nút Thanh toán (Chỉ hiện khi Confirmed - tức là khách đã đến khám) */}
-                        {item.status === "confirmed" && (
-                          <Button
-                            variant="success"
-                            size="sm"
-                            onClick={() => handleOpenPayment(item)}
-                          >
-                            <i className="bi bi-cash-coin"></i> Thu tiền
-                          </Button>
-                        )}
-
-                        {/* Nút Hủy (Hiện khi chưa hoàn thành) */}
-                        {item.status !== "completed" &&
-                          item.status !== "cancelled" && (
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateStatus(item.id, "cancelled")
-                              }
-                            >
-                              <i className="bi bi-x-lg"></i> Hủy
-                            </Button>
-                          )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            // --- TABS TRẠNG THÁI ---
+            <Tabs
+              id="booking-status-tabs"
+              activeKey={key}
+              onSelect={(k) => setKey(k)}
+              className="mb-3"
+            >
+              <Tab eventKey="all" title={`Tất cả (${bookings.length})`}>
+                <BookingTable />
+              </Tab>
+              <Tab
+                eventKey="pending"
+                title={`Chờ xác nhận (${
+                  bookings.filter((b) => b.status === "pending").length
+                })`}
+              >
+                <BookingTable />
+              </Tab>
+              <Tab
+                eventKey="confirmed"
+                title={`Đã xác nhận (${
+                  bookings.filter((b) => b.status === "confirmed").length
+                })`}
+              >
+                <BookingTable />
+              </Tab>
+              <Tab
+                eventKey="completed"
+                title={`Đã thanh toán (${
+                  bookings.filter((b) => b.status === "completed").length
+                })`}
+              >
+                <BookingTable />
+              </Tab>
+              <Tab
+                eventKey="cancelled"
+                title={`Đã hủy (${
+                  bookings.filter((b) => b.status === "cancelled").length
+                })`}
+              >
+                <BookingTable />
+              </Tab>
+            </Tabs>
           )}
         </Card.Body>
       </Card>
 
-      {/* MODAL THANH TOÁN */}
+      {/* MODAL THANH TOÁN (GIỮ NGUYÊN) */}
       <Modal show={showPaymentModal} onHide={() => setShowPaymentModal(false)}>
         <Modal.Header closeButton className="bg-success text-white">
           <Modal.Title>Xác nhận Thu tiền</Modal.Title>

@@ -10,18 +10,23 @@ import {
   Col,
   Badge,
   Spinner,
+  Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
 
 const ServiceManagement = () => {
   const [services, setServices] = useState([]);
-  const [specialties, setSpecialties] = useState([]); // Danh sách chuyên khoa
+  const [specialties, setSpecialties] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- PAGINATION STATE ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const [showModal, setShowModal] = useState(false);
   const [currentService, setCurrentService] = useState({
     id: null,
-    nameService: "", // Chú ý tên trường khớp với Backend
+    nameService: "",
     price: "",
     duration: "",
     description: "",
@@ -39,7 +44,9 @@ const ServiceManagement = () => {
     try {
       const res = await axios.get("http://localhost:8081/api/services");
       if (res.data.EC === 0) {
-        setServices(res.data.DT);
+        // SẮP XẾP: Mới nhất lên đầu
+        const sortedData = res.data.DT.sort((a, b) => b.id - a.id);
+        setServices(sortedData);
       }
     } catch (error) {
       console.log("Lỗi lấy dịch vụ:", error);
@@ -59,6 +66,58 @@ const ServiceManagement = () => {
     }
   };
 
+  // --- LOGIC PHÂN TRANG ---
+  const totalPages = Math.ceil(services.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = services.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  // --- RENDER SỐ TRANG (RÚT GỌN) ---
+  const renderPaginationItems = () => {
+    let items = [];
+    if (currentPage > 2) {
+      items.push(
+        <Pagination.Item key={1} onClick={() => handlePageChange(1)}>
+          1
+        </Pagination.Item>
+      );
+      if (currentPage > 3)
+        items.push(<Pagination.Ellipsis key="start-ellipsis" />);
+    }
+
+    for (
+      let number = Math.max(1, currentPage - 1);
+      number <= Math.min(totalPages, currentPage + 1);
+      number++
+    ) {
+      items.push(
+        <Pagination.Item
+          key={number}
+          active={number === currentPage}
+          onClick={() => handlePageChange(number)}
+        >
+          {number}
+        </Pagination.Item>
+      );
+    }
+
+    if (currentPage < totalPages - 1) {
+      if (currentPage < totalPages - 2)
+        items.push(<Pagination.Ellipsis key="end-ellipsis" />);
+      items.push(
+        <Pagination.Item
+          key={totalPages}
+          onClick={() => handlePageChange(totalPages)}
+        >
+          {totalPages}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
   const handleClose = () => {
     setShowModal(false);
     setCurrentService({
@@ -73,7 +132,6 @@ const ServiceManagement = () => {
 
   const handleShow = (service = null) => {
     if (service) {
-      // Chế độ Sửa
       setCurrentService({
         id: service.id,
         nameService: service.nameService,
@@ -83,7 +141,6 @@ const ServiceManagement = () => {
         specialtyId: service.specialtyId,
       });
     } else {
-      // Chế độ Thêm mới (Reset form)
       setCurrentService({
         id: null,
         nameService: "",
@@ -96,7 +153,6 @@ const ServiceManagement = () => {
     setShowModal(true);
   };
 
-  // 3. Xử lý Submit (Thêm / Sửa)
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
@@ -112,16 +168,12 @@ const ServiceManagement = () => {
       };
 
       if (currentService.id) {
-        // UPDATE
         res = await axios.put(
           `http://localhost:8081/api/services/${currentService.id}`,
           payload,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        // CREATE
         res = await axios.post("http://localhost:8081/api/services", payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -131,7 +183,7 @@ const ServiceManagement = () => {
         alert(
           currentService.id ? "Cập nhật thành công!" : "Thêm mới thành công!"
         );
-        fetchServices(); // Reload danh sách
+        fetchServices();
         handleClose();
       } else {
         alert(res.data.EM);
@@ -141,7 +193,6 @@ const ServiceManagement = () => {
     }
   };
 
-  // 4. Xử lý Xóa
   const handleDelete = async (id) => {
     if (!window.confirm("Xác nhận xóa dịch vụ này?")) return;
 
@@ -149,9 +200,7 @@ const ServiceManagement = () => {
       const token = localStorage.getItem("token");
       const res = await axios.delete(
         `http://localhost:8081/api/services/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.EC === 0) {
@@ -177,88 +226,124 @@ const ServiceManagement = () => {
       </div>
 
       <Card className="shadow-sm border-0">
-        <Card.Body className="p-0">
-          {isLoading ? (
-            <div className="text-center p-5">
-              <Spinner animation="border" />
-            </div>
-          ) : (
-            <Table hover responsive className="align-middle m-0">
-              <thead className="bg-light">
-                <tr>
-                  <th className="ps-4">ID</th>
-                  <th>Tên Dịch vụ</th>
-                  <th>Chuyên khoa</th>
-                  <th>Giá (VNĐ)</th>
-                  <th>Thời lượng</th>
-                  <th>Mô tả</th>
-                  <th className="text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {services.length > 0 ? (
-                  services.map((service) => (
-                    <tr key={service.id}>
-                      <td className="ps-4">#{service.id}</td>
-                      <td className="fw-bold text-primary">
-                        {service.nameService}
-                      </td>
-                      <td>
-                        {service.Specialty ? (
-                          <Badge bg="info" text="dark">
-                            {service.Specialty.nameSpecialty}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted small">Chưa gán</span>
-                        )}
-                      </td>
-                      <td className="fw-bold text-success">
-                        {Number(service.price).toLocaleString("vi-VN")} đ
-                      </td>
-                      <td>{service.duration} phút</td>
-                      <td>
-                        <span
-                          className="d-inline-block text-truncate"
-                          style={{ maxWidth: "150px" }}
-                          title={service.description}
-                        >
-                          {service.description}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <Button
-                          variant="light"
-                          size="sm"
-                          className="me-2 text-primary border-primary"
-                          onClick={() => handleShow(service)}
-                        >
-                          <i className="bi bi-pencil-square"></i>
-                        </Button>
-                        <Button
-                          variant="light"
-                          size="sm"
-                          className="text-danger border-danger"
-                          onClick={() => handleDelete(service.id)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </Button>
+        {/* Set minHeight và Flex column để cố định Footer */}
+        <Card.Body
+          className="p-0 d-flex flex-column"
+          style={{ minHeight: "500px" }}
+        >
+          <div className="flex-grow-1">
+            {isLoading ? (
+              <div className="text-center p-5">
+                <Spinner animation="border" />
+              </div>
+            ) : (
+              <Table hover responsive className="align-middle m-0">
+                <thead className="bg-light">
+                  <tr>
+                    <th className="ps-4">ID</th>
+                    <th>Tên Dịch vụ</th>
+                    <th>Chuyên khoa</th>
+                    <th>Giá (VNĐ)</th>
+                    <th>Thời lượng</th>
+                    <th>Mô tả</th>
+                    <th className="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentItems.length > 0 ? (
+                    currentItems.map((service) => (
+                      <tr key={service.id} style={{ height: "80px" }}>
+                        {" "}
+                        {/* Cố định chiều cao dòng */}
+                        <td className="ps-4">#{service.id}</td>
+                        <td className="fw-bold text-primary">
+                          {service.nameService}
+                        </td>
+                        <td>
+                          {service.Specialty ? (
+                            <Badge bg="info" text="dark">
+                              {service.Specialty.nameSpecialty}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted small">Chưa gán</span>
+                          )}
+                        </td>
+                        <td className="fw-bold text-success">
+                          {Number(service.price).toLocaleString("vi-VN")} đ
+                        </td>
+                        <td>{service.duration} phút</td>
+                        <td>
+                          <span
+                            className="d-inline-block text-truncate"
+                            style={{ maxWidth: "150px" }}
+                            title={service.description}
+                          >
+                            {service.description}
+                          </span>
+                        </td>
+                        <td className="text-center">
+                          <Button
+                            variant="light"
+                            size="sm"
+                            className="me-2 text-primary border-primary"
+                            onClick={() => handleShow(service)}
+                          >
+                            <i className="bi bi-pencil-square"></i>
+                          </Button>
+                          <Button
+                            variant="light"
+                            size="sm"
+                            className="text-danger border-danger"
+                            onClick={() => handleDelete(service.id)}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="text-center py-4">
+                        Chưa có dữ liệu
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="text-center py-4">
-                      Chưa có dữ liệu
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
+                  )}
+
+                  {/* --- FILLER ROWS --- */}
+                  {currentItems.length > 0 &&
+                    currentItems.length < itemsPerPage &&
+                    Array.from({
+                      length: itemsPerPage - currentItems.length,
+                    }).map((_, idx) => (
+                      <tr key={`empty-${idx}`} style={{ height: "80px" }}>
+                        <td colSpan="7"></td>
+                      </tr>
+                    ))}
+                </tbody>
+              </Table>
+            )}
+          </div>
+
+          {/* --- THANH PHÂN TRANG --- */}
+          {services.length > itemsPerPage && !isLoading && (
+            <div className="d-flex justify-content-center py-3 border-top mt-auto">
+              <Pagination className="mb-0">
+                <Pagination.Prev
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                />
+                {renderPaginationItems()}
+                <Pagination.Next
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                />
+              </Pagination>
+            </div>
           )}
         </Card.Body>
       </Card>
 
-      {/* Modal Sửa/Thêm */}
+      {/* Modal Sửa/Thêm (GIỮ NGUYÊN) */}
       <Modal show={showModal} onHide={handleClose} size="lg" centered>
         <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title className="fw-bold">

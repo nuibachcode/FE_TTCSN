@@ -10,15 +10,14 @@ import {
   Col,
   Modal,
   Spinner,
-  OverlayTrigger,
-  Tooltip,
+  Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
 
 const DoctorManagementPage = () => {
   // --- STATE ---
   const [doctors, setDoctors] = useState([]);
-  const [specialties, setSpecialties] = useState([]); // List chuyên khoa cho dropdown
+  const [specialties, setSpecialties] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -35,11 +34,20 @@ const DoctorManagementPage = () => {
     specialtyId: "",
   });
 
+  // --- PAGINATION STATE ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   // --- INIT DATA ---
   useEffect(() => {
     fetchDoctors();
     fetchSpecialties();
   }, []);
+
+  // Reset về trang 1 khi tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // 1. Lấy danh sách Bác sĩ
   const fetchDoctors = async () => {
@@ -58,6 +66,8 @@ const DoctorManagementPage = () => {
             uniqueDoctors.push(item);
           }
         }
+        // SẮP XẾP: Mới nhất lên đầu
+        uniqueDoctors.sort((a, b) => b.id - a.id);
         setDoctors(uniqueDoctors);
       }
     } catch (error) {
@@ -66,7 +76,6 @@ const DoctorManagementPage = () => {
     setIsLoading(false);
   };
 
-  // 2. Lấy danh sách Chuyên khoa (để nạp vào Form thêm mới)
   const fetchSpecialties = async () => {
     try {
       const res = await axios.get("http://localhost:8081/api/specialties");
@@ -77,8 +86,6 @@ const DoctorManagementPage = () => {
   };
 
   // --- HANDLERS ---
-
-  // Xử lý Search (Client-side filtering)
   const filteredDoctors = doctors.filter((doc) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -87,6 +94,58 @@ const DoctorManagementPage = () => {
       (doc.phone && doc.phone.includes(searchTerm))
     );
   });
+
+  // --- LOGIC PHÂN TRANG ---
+  const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredDoctors.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  // --- RENDER SỐ TRANG (RÚT GỌN) ---
+  const renderPaginationItems = () => {
+    let items = [];
+    if (currentPage > 2) {
+      items.push(
+        <Pagination.Item key={1} onClick={() => handlePageChange(1)}>
+          1
+        </Pagination.Item>
+      );
+      if (currentPage > 3)
+        items.push(<Pagination.Ellipsis key="start-ellipsis" />);
+    }
+
+    for (
+      let number = Math.max(1, currentPage - 1);
+      number <= Math.min(totalPages, currentPage + 1);
+      number++
+    ) {
+      items.push(
+        <Pagination.Item
+          key={number}
+          active={number === currentPage}
+          onClick={() => handlePageChange(number)}
+        >
+          {number}
+        </Pagination.Item>
+      );
+    }
+
+    if (currentPage < totalPages - 1) {
+      if (currentPage < totalPages - 2)
+        items.push(<Pagination.Ellipsis key="end-ellipsis" />);
+      items.push(
+        <Pagination.Item
+          key={totalPages}
+          onClick={() => handlePageChange(totalPages)}
+        >
+          {totalPages}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
 
   // Reset Form
   const resetForm = () => {
@@ -102,15 +161,11 @@ const DoctorManagementPage = () => {
     setIsEditing(false);
   };
 
-  // Mở Modal Thêm
   const handleShowAdd = () => {
     resetForm();
     setShowModal(true);
   };
 
-  // Mở Modal Sửa (Fill data vào form)
-
-  // Xử lý Submit Form (Tạo mới / Cập nhật)
   const handleSave = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
@@ -118,11 +173,8 @@ const DoctorManagementPage = () => {
     try {
       let res;
       if (isEditing) {
-        // TODO: Gọi API Update Doctor (nếu bạn đã viết API admin update user)
         alert("Chức năng cập nhật đang phát triển ở Backend!");
-        // res = await axios.put(...)
       } else {
-        // Gọi API Tạo mới
         res = await axios.post(
           "http://localhost:8081/api/admin/doctors",
           formData,
@@ -135,7 +187,7 @@ const DoctorManagementPage = () => {
       if (res && res.data.EC === 0) {
         alert(isEditing ? "Cập nhật thành công!" : "Thêm bác sĩ thành công!");
         setShowModal(false);
-        fetchDoctors(); // Reload lại danh sách
+        fetchDoctors();
       } else if (res) {
         alert(res.data.EM);
       }
@@ -145,9 +197,7 @@ const DoctorManagementPage = () => {
     }
   };
 
-  // --- UI COMPONENTS ---
-
-  // Avatar chữ cái đầu (cho đẹp)
+  // Avatar Component
   const AvatarCircle = ({ name }) => {
     const firstLetter = name ? name.charAt(0).toUpperCase() : "D";
     return (
@@ -198,95 +248,132 @@ const DoctorManagementPage = () => {
         </Card.Body>
       </Card>
 
-      {/* Table List */}
+      {/* Table List (Fixed Height + Pagination) */}
       <Card className="border-0 shadow-sm">
-        <Card.Body className="p-0">
-          {isLoading ? (
-            <div className="text-center p-5">
-              <Spinner animation="border" variant="primary" />
-            </div>
-          ) : (
-            <Table hover responsive className="align-middle m-0">
-              <thead className="bg-light text-secondary">
-                <tr>
-                  <th className="ps-4 py-3">Bác sĩ</th>
-                  <th>Chuyên khoa</th>
-                  <th>Liên hệ</th>
-                  <th>Địa chỉ</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDoctors.length > 0 ? (
-                  filteredDoctors.map((doc) => (
-                    <tr key={doc.id}>
-                      <td className="ps-4">
-                        <div className="d-flex align-items-center">
-                          <AvatarCircle name={doc.fullName} />
-                          <div>
-                            <div className="fw-bold text-dark">
-                              {doc.fullName}
+        {/* Set flex column và minHeight để cố định khung */}
+        <Card.Body
+          className="p-0 d-flex flex-column"
+          style={{ minHeight: "500px" }}
+        >
+          <div className="flex-grow-1">
+            {isLoading ? (
+              <div className="text-center p-5">
+                <Spinner animation="border" variant="primary" />
+              </div>
+            ) : (
+              <Table hover responsive className="align-middle m-0">
+                <thead className="bg-light text-secondary">
+                  <tr>
+                    <th className="ps-4 py-3">Bác sĩ</th>
+                    <th>Chuyên khoa</th>
+                    <th>Liên hệ</th>
+                    <th>Địa chỉ</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentItems.length > 0 ? (
+                    currentItems.map((doc) => (
+                      <tr key={doc.id} style={{ height: "80px" }}>
+                        {" "}
+                        {/* Cố định chiều cao hàng */}
+                        <td className="ps-4">
+                          <div className="d-flex align-items-center">
+                            <AvatarCircle name={doc.fullName} />
+                            <div>
+                              <div className="fw-bold text-dark">
+                                {doc.fullName}
+                              </div>
+                              <small className="text-muted">{doc.email}</small>
                             </div>
-                            <small className="text-muted">{doc.email}</small>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        {doc.DoctorInfo && doc.DoctorInfo.Specialty ? (
-                          <Badge
-                            bg="info"
-                            text="dark"
-                            className="px-3 py-2 rounded-pill"
+                        </td>
+                        <td>
+                          {doc.DoctorInfo && doc.DoctorInfo.Specialty ? (
+                            <Badge
+                              bg="info"
+                              text="dark"
+                              className="px-3 py-2 rounded-pill"
+                            >
+                              {doc.DoctorInfo.Specialty.nameSpecialty}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted fst-italic small">
+                              Chưa cập nhật
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {doc.phone ? (
+                            <span className="fw-semibold">{doc.phone}</span>
+                          ) : (
+                            <span className="text-muted">--</span>
+                          )}
+                        </td>
+                        <td>
+                          <span
+                            className="text-muted small d-inline-block text-truncate"
+                            style={{ maxWidth: "150px" }}
+                            title={doc.address}
                           >
-                            {doc.DoctorInfo.Specialty.nameSpecialty}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted fst-italic small">
-                            Chưa cập nhật
+                            {doc.address || "--"}
                           </span>
-                        )}
-                      </td>
-                      <td>
-                        {doc.phone ? (
-                          <span className="fw-semibold">{doc.phone}</span>
-                        ) : (
-                          <span className="text-muted">--</span>
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className="text-muted small d-inline-block text-truncate"
-                          style={{ maxWidth: "150px" }}
-                          title={doc.address}
-                        >
-                          {doc.address || "--"}
-                        </span>
-                      </td>
-                      <td>
-                        {/* Giả sử có trường isActive, nếu không có thì mặc định Active */}
-                        <Badge
-                          bg={doc.isActive === false ? "secondary" : "success"}
-                          className="dot-badge"
-                        >
-                          {doc.isActive === false ? "Đã khóa" : "Hoạt động"}
-                        </Badge>
+                        </td>
+                        <td>
+                          <Badge
+                            bg={
+                              doc.isActive === false ? "secondary" : "success"
+                            }
+                            className="dot-badge"
+                          >
+                            {doc.isActive === false ? "Đã khóa" : "Hoạt động"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center py-5 text-muted">
+                        Không tìm thấy bác sĩ nào.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5 text-muted">
-                      Không tìm thấy bác sĩ nào.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
+                  )}
+
+                  {/* --- FILLER ROWS --- */}
+                  {currentItems.length > 0 &&
+                    currentItems.length < itemsPerPage &&
+                    Array.from({
+                      length: itemsPerPage - currentItems.length,
+                    }).map((_, idx) => (
+                      <tr key={`empty-${idx}`} style={{ height: "80px" }}>
+                        <td colSpan="5"></td>
+                      </tr>
+                    ))}
+                </tbody>
+              </Table>
+            )}
+          </div>
+
+          {/* --- THANH PHÂN TRANG --- */}
+          {filteredDoctors.length > itemsPerPage && !isLoading && (
+            <div className="d-flex justify-content-center py-3 border-top mt-auto">
+              <Pagination className="mb-0">
+                <Pagination.Prev
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                />
+                {renderPaginationItems()}
+                <Pagination.Next
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                />
+              </Pagination>
+            </div>
           )}
         </Card.Body>
       </Card>
 
-      {/* --- MODAL THÊM / SỬA --- */}
+      {/* --- MODAL THÊM / SỬA (GIỮ NGUYÊN) --- */}
       <Modal
         show={showModal}
         onHide={() => setShowModal(false)}
@@ -330,7 +417,7 @@ const DoctorManagementPage = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    disabled={isEditing} // Không cho sửa email khi edit
+                    disabled={isEditing}
                   />
                 </Form.Group>
               </Col>
