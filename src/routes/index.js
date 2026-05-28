@@ -1,8 +1,8 @@
 import NotFoundPage from "../pages/Public/NotFoundPage";
 
 import { UserRoutes } from "./UserRoutes";
-import { DoctorRoutes } from "./DoctorRoutes";
-import { AdminRoutes } from "./AdminRoutes";
+import { DoctorRoutes } from "./doctorRoutes";
+import { AdminRoutes } from "./adminRoutes";
 
 const allRoutes = [
   ...UserRoutes,
