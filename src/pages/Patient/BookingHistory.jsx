@@ -8,6 +8,7 @@ import {
   Pagination, // Thêm component Pagination
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 
@@ -36,7 +37,7 @@ const BookingHistory = () => {
   const fetchHistory = async (patientId, token) => {
     try {
       let res = await axios.get(
-        `http://localhost:8081/api/booking-history?patientId=${patientId}`,
+        `${API_URL}/api/booking-history?patientId=${patientId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

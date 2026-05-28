@@ -11,6 +11,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 
 const PatientRecordsPage = () => {
@@ -33,7 +34,7 @@ const PatientRecordsPage = () => {
     try {
       const token = localStorage.getItem("token"); // Lấy token xác thực
       const res = await axios.get(
-        `http://localhost:8081/api/doctor/patients?doctorId=${user.id}`,
+        `${API_URL}/api/doctor/patients?doctorId=${user.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

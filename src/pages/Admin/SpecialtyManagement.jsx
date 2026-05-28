@@ -10,6 +10,7 @@ import {
   Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 
 // --- DANH SÁCH CHUYÊN KHOA MẪU (Để chọn trong Modal) ---
 const SAMPLE_SPECIALTIES = [
@@ -46,7 +47,7 @@ const SpecialtyManagement = () => {
   const fetchSpecialties = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get("http://localhost:8081/api/specialties");
+      const res = await axios.get(`${API_URL}/api/specialties`);
       if (res.data.EC === 0) {
         // Map dữ liệu và SẮP XẾP MỚI NHẤT LÊN ĐẦU
         const mappedData = res.data.DT.map((item) => ({
@@ -139,14 +140,14 @@ const SpecialtyManagement = () => {
       if (currentSpecialty.id) {
         // UPDATE
         res = await axios.put(
-          `http://localhost:8081/api/specialties/${currentSpecialty.id}`,
+          `${API_URL}/api/specialties/${currentSpecialty.id}`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
         // CREATE
         res = await axios.post(
-          "http://localhost:8081/api/specialties",
+          `${API_URL}/api/specialties`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -171,7 +172,7 @@ const SpecialtyManagement = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.delete(
-          `http://localhost:8081/api/specialties/${id}`,
+          `${API_URL}/api/specialties/${id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

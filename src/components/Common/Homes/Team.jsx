@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios"; // 1. Import Axios
+import { API_URL } from "../../../config";
 
 // Bỏ các import Dr_David_Lee... đi vì giờ lấy ảnh từ DB
 import khachhang1 from "../../../assets/images/khachhang3.jpg";
@@ -17,7 +18,7 @@ export default function TeamAndTestimonials() {
   const fetchDoctors = async () => {
     try {
       // Thay cổng 8080 bằng cổng backend thực tế của bạn
-      let res = await axios.get("http://localhost:8081/api/doctor-info");
+      let res = await axios.get(`${API_URL}/api/doctor-info`);
       if (res && res.data && res.data.EC === 0) {
         setDoctors(res.data.DT);
       }

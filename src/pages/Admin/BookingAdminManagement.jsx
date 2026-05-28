@@ -14,6 +14,7 @@ import {
   Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 
 const BookingAdminManagement = () => {
@@ -48,7 +49,7 @@ const BookingAdminManagement = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:8081/api/bookings", {
+      const res = await axios.get(`${API_URL}/api/bookings`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.EC === 0) {
@@ -137,7 +138,7 @@ const BookingAdminManagement = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.put(
-        `http://localhost:8081/api/bookings/${bookingId}`,
+        `${API_URL}/api/bookings/${bookingId}`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -175,7 +176,7 @@ const BookingAdminManagement = () => {
       };
 
       const res = await axios.post(
-        "http://localhost:8081/api/payments",
+        `${API_URL}/api/payments`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );

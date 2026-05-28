@@ -9,6 +9,7 @@ import {
   Col,
 } from "react-bootstrap";
 import axios from "axios"; // Nhớ import axios
+import { API_URL } from "../../config";
 import { useNavigate } from "react-router-dom";
 import ChangePasswordModal from "./ChangePasswordModal";
 
@@ -54,7 +55,7 @@ const PatientProfile = () => {
   // Hàm gọi API lấy thông tin
   const fetchUserProfile = async (id, token) => {
     try {
-      const res = await axios.get(`http://localhost:8081/api/users/${id}`, {
+      const res = await axios.get(`${API_URL}/api/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` }, // Gửi kèm Token để qua được protectedRoute
       });
 
@@ -121,7 +122,7 @@ const PatientProfile = () => {
       };
 
       const res = await axios.put(
-        `http://localhost:8081/api/users/${userId}`,
+        `${API_URL}/api/users/${userId}`,
         dataToUpdate,
         {
           headers: { Authorization: `Bearer ${token}` },

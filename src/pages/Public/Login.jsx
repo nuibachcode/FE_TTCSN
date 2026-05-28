@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import LoginRegisterLayout from "../../layout/LoginRegisterLayout";
 import axios from "axios";
+import { API_URL } from "../../config";
 // import { toast } from "react-toastify";
 
 const LoginPage = () => {
@@ -27,7 +28,7 @@ const LoginPage = () => {
       setIsLoading(true);
 
       // Gọi API
-      const response = await axios.post("http://localhost:8081/api/login", {
+      const response = await axios.post(`${API_URL}/api/login`, {
         account: account,
         password: password,
       });

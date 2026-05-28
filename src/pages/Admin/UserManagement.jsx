@@ -12,6 +12,7 @@ import {
   Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 
 const ROLES = {
   1: "Admin",
@@ -33,7 +34,7 @@ const UserManagement = () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:8081/api/users", {
+      const res = await axios.get(`${API_URL}/api/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -52,7 +53,7 @@ const UserManagement = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.put(
-        `http://localhost:8081/api/users/${userId}/role`,
+        `${API_URL}/api/users/${userId}/role`,
         { roleId: newRoleId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -76,7 +77,7 @@ const UserManagement = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.delete(
-        `http://localhost:8081/api/users/${userId}`,
+        `${API_URL}/api/users/${userId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

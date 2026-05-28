@@ -3,6 +3,7 @@ import LoginRegisterLayout from "../../layout/LoginRegisterLayout";
 import "./Register.css"; // Đảm bảo bạn đã có file css này
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_URL } from "../../config";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ const Register = () => {
       // -- Gọi API --
       // URL dựa trên file api.js: router.post("/users", createNewUser);
       const response = await axios.post(
-        "http://localhost:8081/api/users",
+        `${API_URL}/api/users`,
         dataToSend
       );
 

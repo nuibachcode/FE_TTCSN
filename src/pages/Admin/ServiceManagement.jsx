@@ -13,6 +13,7 @@ import {
   Pagination, // Thêm Pagination
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 
 const ServiceManagement = () => {
   const [services, setServices] = useState([]);
@@ -42,7 +43,7 @@ const ServiceManagement = () => {
   const fetchServices = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get("http://localhost:8081/api/services");
+      const res = await axios.get(`${API_URL}/api/services`);
       if (res.data.EC === 0) {
         // SẮP XẾP: Mới nhất lên đầu
         const sortedData = res.data.DT.sort((a, b) => b.id - a.id);
@@ -57,7 +58,7 @@ const ServiceManagement = () => {
   // 2. Lấy danh sách Chuyên khoa
   const fetchSpecialties = async () => {
     try {
-      const res = await axios.get("http://localhost:8081/api/specialties");
+      const res = await axios.get(`${API_URL}/api/specialties`);
       if (res.data.EC === 0) {
         setSpecialties(res.data.DT);
       }
@@ -169,12 +170,12 @@ const ServiceManagement = () => {
 
       if (currentService.id) {
         res = await axios.put(
-          `http://localhost:8081/api/services/${currentService.id}`,
+          `${API_URL}/api/services/${currentService.id}`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        res = await axios.post("http://localhost:8081/api/services", payload, {
+        res = await axios.post(`${API_URL}/api/services`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
@@ -199,7 +200,7 @@ const ServiceManagement = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.delete(
-        `http://localhost:8081/api/services/${id}`,
+        `${API_URL}/api/services/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

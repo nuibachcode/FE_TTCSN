@@ -16,6 +16,7 @@ import {
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 
 const timeSlots = [
@@ -57,7 +58,7 @@ const ScheduleManagement = () => {
     setIsLoading(true);
     try {
       const res = await axios.get(
-        `http://localhost:8081/api/schedules/doctor?doctorId=${user.id}`
+        `${API_URL}/api/schedules/doctor?doctorId=${user.id}`
       );
       if (res.data.EC === 0) setSchedules(res.data.DT);
     } catch (e) {
@@ -127,7 +128,7 @@ const ScheduleManagement = () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://localhost:8081/api/schedules",
+        `${API_URL}/api/schedules`,
         {
           doctorId: user.id,
           dateWork: formattedDate,
@@ -156,7 +157,7 @@ const ScheduleManagement = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.delete(
-          `http://localhost:8081/api/schedules/${id}`,
+          `${API_URL}/api/schedules/${id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

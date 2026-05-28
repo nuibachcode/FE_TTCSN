@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_URL } from "../../config";
 import service1 from "../../assets/images/anhservice.png";
 import service2 from "../../assets/images/anh_herodetail5.png";
 import service3 from "../../assets/images/anh_herodetail6.png";
@@ -17,7 +18,7 @@ export default function ServicesDetail() {
 
   const fetchServices = async () => {
     try {
-      let res = await axios.get("http://localhost:8081/api/services");
+      let res = await axios.get(`${API_URL}/api/services`);
       if (res && res.data && res.data.EC === 0) {
         setServices(res.data.DT);
       }

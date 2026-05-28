@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_URL } from "../../config";
 
 const Doctor = () => {
   const [doctors, setDoctors] = useState([]);
@@ -14,7 +15,7 @@ const Doctor = () => {
 
   const fetchDoctors = async () => {
     try {
-      let res = await axios.get("http://localhost:8081/api/doctor-info");
+      let res = await axios.get(`${API_URL}/api/doctor-info`);
 
       if (res && res.data && res.data.EC === 0) {
         const rawData = res.data.DT;
