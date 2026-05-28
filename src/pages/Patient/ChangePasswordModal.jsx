@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Form, Button, Alert } from "react-bootstrap";
 import axios from "axios"; // 1. Import Axios
+import { API_URL } from "../../config";
 
 const ChangePasswordModal = ({ show, onHide }) => {
   // State cho Form Đổi mật khẩu
@@ -65,7 +66,7 @@ const ChangePasswordModal = ({ show, onHide }) => {
       // 3. GỌI API THẬT
       // Gửi field "password" để khớp với logic mình vừa sửa ở userServices.js
       const res = await axios.put(
-        `http://localhost:8081/api/users/${user.id}`,
+        `${API_URL}/api/users/${user.id}`,
         { password: newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );

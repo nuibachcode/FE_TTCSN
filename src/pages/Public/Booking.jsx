@@ -14,6 +14,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 
 // --- CẤU HÌNH MÀU SẮC & STYLE ---
@@ -76,9 +77,9 @@ const Booking = () => {
   const fetchInitialData = async () => {
     try {
       const [resDoctor, resService, resSpecialty] = await Promise.all([
-        axios.get("http://localhost:8081/api/doctor-info"),
-        axios.get("http://localhost:8081/api/services"),
-        axios.get("http://localhost:8081/api/specialties"),
+        axios.get(`${API_URL}/api/doctor-info`),
+        axios.get(`${API_URL}/api/services`),
+        axios.get(`${API_URL}/api/specialties`),
       ]);
 
       if (resDoctor.data.EC === 0) setDoctors(resDoctor.data.DT);
@@ -106,7 +107,7 @@ const Booking = () => {
     try {
       const dateString = moment(bookingData.selectedDate).format("YYYY-MM-DD");
       const res = await axios.get(
-        `http://localhost:8081/api/schedule-by-date?doctorId=${bookingData.doctorId}&date=${dateString}`
+        `${API_URL}/api/schedule-by-date?doctorId=${bookingData.doctorId}&date=${dateString}`
       );
       if (res.data.EC === 0) {
         // Gọi hàm xử lý chia nhỏ giờ từ dữ liệu gốc
@@ -212,7 +213,7 @@ const Booking = () => {
       };
 
       const res = await axios.post(
-        "http://localhost:8081/api/bookings",
+        `${API_URL}/api/bookings`,
         payload,
         {
           headers: { Authorization: `Bearer ${token}` },

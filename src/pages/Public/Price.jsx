@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios"; // 1. Import thư viện gọi API
+import { API_URL } from "../../config";
 
 export default function PricePage() {
   // 2. State lưu danh sách dịch vụ
@@ -13,7 +14,7 @@ export default function PricePage() {
   const fetchServices = async () => {
     try {
       // Thay đổi cổng 8081
-      let res = await axios.get("http://localhost:8081/api/services");
+      let res = await axios.get(`${API_URL}/api/services`);
       if (res && res.data && res.data.EC === 0) {
         setServices(res.data.DT);
       }

@@ -11,6 +11,7 @@ import {
 } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 
 const AdminDashboardPage = () => {
@@ -39,8 +40,8 @@ const AdminDashboardPage = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       const [resStats, resRecent] = await Promise.all([
-        axios.get("http://localhost:8081/api/admin/stats", config),
-        axios.get("http://localhost:8081/api/admin/payments/recent", config),
+        axios.get(`${API_URL}/api/admin/stats`, config),
+        axios.get(`${API_URL}/api/admin/payments/recent`, config),
       ]);
 
       if (resStats.data.EC === 0) {

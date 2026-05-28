@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react"; // 1. Thêm useMemo
 import {
   Card,
   Table,
@@ -10,9 +10,33 @@ import {
   Col,
   Modal,
   Spinner,
-  Pagination, // Thêm Pagination
+  Pagination,
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
+
+// 2. Hàm hỗ trợ bỏ dấu Tiếng Việt (Để tìm "Đạt" khi gõ "dat")
+const removeVietnameseTones = (str) => {
+  if (!str) return "";
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+  str = str.replace(/đ/g, "d");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Đ/g, "D");
+  // Một số bộ gõ kết hợp
+  str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
+  str = str.replace(/\u02C6|\u0306|\u031B/g, "");
+  return str;
+};
 
 const DoctorManagementPage = () => {
   // --- STATE ---
@@ -49,12 +73,12 @@ const DoctorManagementPage = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // 1. Lấy danh sách Bác sĩ
+  // Lấy danh sách Bác sĩ
   const fetchDoctors = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:8081/api/admin/doctors", {
+      const res = await axios.get(`${API_URL}/api/admin/doctors`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.EC === 0) {
@@ -66,7 +90,6 @@ const DoctorManagementPage = () => {
             uniqueDoctors.push(item);
           }
         }
-        // SẮP XẾP: Mới nhất lên đầu
         uniqueDoctors.sort((a, b) => b.id - a.id);
         setDoctors(uniqueDoctors);
       }
@@ -78,22 +101,33 @@ const DoctorManagementPage = () => {
 
   const fetchSpecialties = async () => {
     try {
-      const res = await axios.get("http://localhost:8081/api/specialties");
+      const res = await axios.get(`${API_URL}/api/specialties`);
       if (res.data.EC === 0) setSpecialties(res.data.DT);
     } catch (error) {
       console.log(error);
     }
   };
 
-  // --- HANDLERS ---
-  const filteredDoctors = doctors.filter((doc) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      doc.fullName.toLowerCase().includes(searchLower) ||
-      doc.email.toLowerCase().includes(searchLower) ||
-      (doc.phone && doc.phone.includes(searchTerm))
-    );
-  });
+  // --- 3. THUẬT TOÁN TÌM KIẾM MỚI (TỐI ƯU) ---
+  const filteredDoctors = useMemo(() => {
+    // Nếu không có từ khóa, trả về toàn bộ danh sách (đỡ tốn công filter)
+    if (!searchTerm) return doctors;
+
+    const searchStr = removeVietnameseTones(searchTerm).toLowerCase();
+
+    return doctors.filter((doc) => {
+      // Chuẩn hóa dữ liệu bác sĩ để so sánh
+      const name = removeVietnameseTones(doc.fullName || "").toLowerCase();
+      const email = (doc.email || "").toLowerCase(); // Email thường không có dấu
+      const phone = doc.phone || "";
+
+      return (
+        name.includes(searchStr) ||
+        email.includes(searchStr) ||
+        phone.includes(searchStr)
+      );
+    });
+  }, [doctors, searchTerm]); // Chỉ chạy lại khi 'doctors' hoặc 'searchTerm' thay đổi
 
   // --- LOGIC PHÂN TRANG ---
   const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage);
@@ -103,7 +137,7 @@ const DoctorManagementPage = () => {
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
 
-  // --- RENDER SỐ TRANG (RÚT GỌN) ---
+  // --- RENDER SỐ TRANG ---
   const renderPaginationItems = () => {
     let items = [];
     if (currentPage > 2) {
@@ -176,7 +210,7 @@ const DoctorManagementPage = () => {
         alert("Chức năng cập nhật đang phát triển ở Backend!");
       } else {
         res = await axios.post(
-          "http://localhost:8081/api/admin/doctors",
+          `${API_URL}/api/admin/doctors`,
           formData,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -239,7 +273,7 @@ const DoctorManagementPage = () => {
               <i className="bi bi-search text-muted"></i>
             </InputGroup.Text>
             <Form.Control
-              placeholder="Tìm kiếm theo Tên, Email hoặc Số điện thoại..."
+              placeholder="Tìm kiếm theo Tên, Email hoặc Số điện thoại (Hỗ trợ gõ không dấu)..."
               className="border-start-0 ps-0"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -250,7 +284,6 @@ const DoctorManagementPage = () => {
 
       {/* Table List (Fixed Height + Pagination) */}
       <Card className="border-0 shadow-sm">
-        {/* Set flex column và minHeight để cố định khung */}
         <Card.Body
           className="p-0 d-flex flex-column"
           style={{ minHeight: "500px" }}
@@ -275,8 +308,6 @@ const DoctorManagementPage = () => {
                   {currentItems.length > 0 ? (
                     currentItems.map((doc) => (
                       <tr key={doc.id} style={{ height: "80px" }}>
-                        {" "}
-                        {/* Cố định chiều cao hàng */}
                         <td className="ps-4">
                           <div className="d-flex align-items-center">
                             <AvatarCircle name={doc.fullName} />
@@ -334,12 +365,11 @@ const DoctorManagementPage = () => {
                   ) : (
                     <tr>
                       <td colSpan="5" className="text-center py-5 text-muted">
-                        Không tìm thấy bác sĩ nào.
+                        Không tìm thấy bác sĩ nào phù hợp.
                       </td>
                     </tr>
                   )}
 
-                  {/* --- FILLER ROWS --- */}
                   {currentItems.length > 0 &&
                     currentItems.length < itemsPerPage &&
                     Array.from({

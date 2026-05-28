@@ -11,6 +11,7 @@ import {
   InputGroup,
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import moment from "moment";
@@ -97,7 +98,7 @@ const DetailedReportsPage = () => {
       const endStr = moment(selectedMonth).endOf("month").format("YYYY-MM-DD");
 
       const res = await axios.get(
-        `http://localhost:8081/api/admin/reports/detailed?startDate=${startStr}&endDate=${endStr}`,
+        `${API_URL}/api/admin/reports/detailed?startDate=${startStr}&endDate=${endStr}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.EC === 0) {
@@ -118,7 +119,7 @@ const DetailedReportsPage = () => {
       const endStr = moment(endDate).format("YYYY-MM-DD");
 
       const res = await axios.get(
-        `http://localhost:8081/api/admin/reports/detailed?startDate=${startStr}&endDate=${endStr}`,
+        `${API_URL}/api/admin/reports/detailed?startDate=${startStr}&endDate=${endStr}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.EC === 0) {

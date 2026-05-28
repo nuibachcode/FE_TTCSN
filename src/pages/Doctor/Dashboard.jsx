@@ -9,6 +9,7 @@ import {
   Col,
 } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 import moment from "moment";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css"; // Nhớ import CSS này
@@ -32,7 +33,7 @@ const DoctorDashboard = () => {
       const formattedDate = moment(date).format("YYYY-MM-DD");
 
       const res = await axios.get(
-        `http://localhost:8081/api/doctor/bookings?doctorId=${doctorId}&date=${formattedDate}`
+        `${API_URL}/api/doctor/bookings?doctorId=${doctorId}&date=${formattedDate}`
       );
 
       if (res && res.data && res.data.errCode === 0) {

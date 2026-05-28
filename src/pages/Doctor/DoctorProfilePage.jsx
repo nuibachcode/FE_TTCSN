@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Form, Row, Col, Card, Button, Alert, Spinner } from "react-bootstrap";
 import axios from "axios";
+import { API_URL } from "../../config";
 
 const DoctorProfilePage = () => {
   const [profile, setProfile] = useState({
@@ -31,8 +32,8 @@ const DoctorProfilePage = () => {
 
       // Gọi song song API lấy Chuyên khoa và Thông tin Bác sĩ
       const [resSpec, resDoc] = await Promise.all([
-        axios.get("http://localhost:8081/api/specialties"),
-        axios.get(`http://localhost:8081/api/doctor-info/${user.id}`),
+        axios.get(`${API_URL}/api/specialties`),
+        axios.get(`${API_URL}/api/doctor-info/${user.id}`),
       ]);
 
       if (resSpec.data.EC === 0) {
@@ -97,7 +98,7 @@ const DoctorProfilePage = () => {
       console.log("Đang gửi dữ liệu:", payload); // Debug xem log có chạy không
 
       const res = await axios.put(
-        "http://localhost:8081/api/doctor-info",
+        `${API_URL}/api/doctor-info`,
         payload,
         {
           headers: { Authorization: `Bearer ${token}` },
