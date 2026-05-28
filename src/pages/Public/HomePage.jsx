@@ -3,7 +3,7 @@
 import Team from "../../components/Common/Homes/Team";
 import Hero from "../../components/Common/Homes/Hero";
 import About from "../../components/Common/Homes/About";
-import Service from "../../components/Common/Homes/service";
+import Service from "../../components/Common/Homes/Service";
 const HomePage = () => {
   return (
     <>
