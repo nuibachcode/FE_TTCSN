@@ -14,7 +14,7 @@ import AboutUs from "../pages/Public/AboutUs";
 import Doctor from "../pages/Public/Doctor";
 import Feedback from "../pages/Public/Feedback";
 import PricePage from "../pages/Public/Price";
-import Services from "../pages/Public/service";
+import Services from "../pages/Public/Service";
 import WhyUs from "../pages/Public/WhyUs";
 import Booking from "../pages/Public/Booking";
 
